@@ -85,7 +85,19 @@ export default function Dashboard() {
       .sort((a, b) => b.amount - a.amount)
       .slice(0, 8);
 
-    return { summary, trend, byCategory, byPerson, budgetTotal, top };
+    const pv = categories.find((c) => c.name === "Por verificar");
+    const porVerificar = {
+      id: pv?.id ?? null,
+      count:
+        summary.sinCategoria + (pv ? thisMonth.filter((t) => t.category_id === pv.id && t.type === "gasto").length : 0),
+      total: (pv ? (summary.byCategory.get(pv.id) ?? 0) : 0) + (summary.byCategory.get("") ?? 0),
+    };
+    const excluded = [...summary.excluded.entries()]
+      .map(([id, total]) => ({ id, total, name: categoryById.get(id)?.name ?? "" }))
+      .filter((e) => e.name !== "Pago de tarjeta")
+      .sort((a, b) => b.total - a.total);
+
+    return { summary, trend, byCategory, byPerson, budgetTotal, top, porVerificar, excluded };
   }, [txs, month, categoryById, categories]);
 
   return (
@@ -125,13 +137,26 @@ export default function Dashboard() {
             />
           </div>
 
-          {data.summary.sinCategoria > 0 && (
+          {data.porVerificar.count > 0 && (
             <Link
-              href="/movimientos?sin=1"
+              href={data.porVerificar.id ? `/movimientos?cat=${data.porVerificar.id}` : "/movimientos?sin=1"}
               className="block rounded-xl border border-amber-300 bg-amber-50 px-4 py-3 text-sm text-amber-900 hover:bg-amber-100"
             >
-              ⚠️ Hay {data.summary.sinCategoria} movimientos sin categoría este mes. Toca aquí para clasificarlos.
+              🔎 Hay <b>{data.porVerificar.count}</b> gastos <b>por verificar</b> este mes ({money(data.porVerificar.total)}). Toca
+              aquí para asignarles su categoría.
             </Link>
+          )}
+
+          {data.excluded.length > 0 && (
+            <div className="card flex flex-wrap items-center gap-x-6 gap-y-2 text-sm">
+              <span className="font-medium text-slate-600">No suman al presupuesto familiar:</span>
+              {data.excluded.map((e) => (
+                <Link key={e.id} href={`/movimientos?cat=${e.id}`} className="hover:underline">
+                  {e.name === "Agencia (negocio)" ? "🏢 " : ""}
+                  {e.name}: <b>{money(e.total)}</b>
+                </Link>
+              ))}
+            </div>
           )}
 
           <div className="grid gap-6 lg:grid-cols-3">

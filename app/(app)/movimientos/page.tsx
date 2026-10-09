@@ -22,7 +22,9 @@ export default function MovimientosPage() {
   const [ruleFor, setRuleFor] = useState<{ tx: Transaction; categoryId: string; pattern: string } | null>(null);
 
   useEffect(() => {
-    if (new URLSearchParams(window.location.search).get("sin")) setCatFilter("__none");
+    const params = new URLSearchParams(window.location.search);
+    if (params.get("sin")) setCatFilter("__none");
+    if (params.get("cat")) setCatFilter(params.get("cat")!);
   }, []);
 
   async function load() {
@@ -198,7 +200,7 @@ export default function MovimientosPage() {
                       </td>
                       <td>
                         <select
-                          className={`input min-w-40 py-1 ${!t.category_id ? "border-amber-400 bg-amber-50" : ""}`}
+                          className={`input min-w-40 py-1 ${!t.category_id || categoryById.get(t.category_id)?.name === "Por verificar" ? "border-amber-400 bg-amber-50" : ""}`}
                           value={t.category_id ?? ""}
                           onChange={(e) => changeCategory(t, e.target.value)}
                         >

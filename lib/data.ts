@@ -38,6 +38,8 @@ export interface MonthSummary {
   byCategory: Map<string, number>; // category_id ("" = sin categoría) -> total gasto
   byPerson: Map<string, number>;
   sinCategoria: number;
+  /** Gastos en categorías que "no cuentan" (agencia, etc.), por categoría */
+  excluded: Map<string, number>;
 }
 
 /** Resume los movimientos: excluye pagos de tarjeta y gastos de negocio (categorías "excluido") */
@@ -50,10 +52,14 @@ export function summarize(txs: Transaction[], categoryById: Map<string, Category
     byCategory: new Map(),
     byPerson: new Map(),
     sinCategoria: 0,
+    excluded: new Map(),
   };
   for (const t of txs) {
     const cat = t.category_id ? categoryById.get(t.category_id) : undefined;
-    if (cat?.kind === "excluido") continue;
+    if (cat?.kind === "excluido") {
+      if (t.type === "gasto") s.excluded.set(cat.id, (s.excluded.get(cat.id) ?? 0) + t.amount);
+      continue;
+    }
     if (!cat) s.sinCategoria++;
     if (cat?.kind === "ahorro") {
       s.ahorro += t.type === "gasto" ? t.amount : -t.amount;

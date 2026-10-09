@@ -20,6 +20,8 @@ export function makeCategorizer(rules: Rule[], categories: Category[]) {
     if (hit) return hit.category_id;
     // Si en una tarjeta entra plata y no hay regla, casi siempre es un pago a la tarjeta
     if (type === "ingreso" && source === "tarjeta") return byName.get("Pago de tarjeta") ?? null;
+    // Gasto que no reconocemos: queda "Por verificar" para que la familia lo revise
+    if (type === "gasto") return byName.get("Por verificar") ?? null;
     return null;
   };
 }

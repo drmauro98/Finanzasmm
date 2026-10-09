@@ -246,7 +246,11 @@ export function extractRows(sheet: ParsedSheet, columns: ColumnMap, opts: Extrac
 
 /** Hash corto y estable para detectar movimientos ya importados */
 export function rowHash(account: string, row: ParsedRow): string {
-  const str = [account, row.date, row.description.toUpperCase(), row.originalAmount ?? row.amount, row.ref].join("|");
+  // La misma compra a cuotas aparece cada mes (6/10, 7/10...): la cuota hace parte de la identidad
+  const cuota = row.installments && row.installments !== "1/1" ? row.installments : "";
+  const str = [account, row.date, row.description.toUpperCase(), row.originalAmount ?? row.amount, row.ref, cuota]
+    .filter((x) => x !== "")
+    .join("|");
   let h1 = 0xdeadbeef ^ str.length;
   let h2 = 0x41c6ce57 ^ str.length;
   for (let i = 0; i < str.length; i++) {
@@ -257,4 +261,20 @@ export function rowHash(account: string, row: ParsedRow): string {
   h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
   h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
   return (h2 >>> 0).toString(16).padStart(8, "0") + (h1 >>> 0).toString(16).padStart(8, "0");
+}
+
+/**
+ * Mes al que corresponde un extracto de tarjeta ("YYYY-MM"): el más frecuente entre las compras nuevas
+ * (sin cuotas o en la cuota 1). Las cuotas de compras viejas traen su fecha original y no cuentan aquí.
+ */
+export function guessStatementMonth(rows: ParsedRow[]): string | null {
+  const fresh = rows.filter((r) => !r.installments || /^1\//.test(r.installments));
+  const pool = fresh.length ? fresh : rows;
+  const counts = new Map<string, number>();
+  pool.forEach((r) => counts.set(r.date.slice(0, 7), (counts.get(r.date.slice(0, 7)) ?? 0) + 1));
+  let best: string | null = null;
+  counts.forEach((n, m) => {
+    if (!best || n > counts.get(best)! || (n === counts.get(best)! && m > best)) best = m;
+  });
+  return best;
 }

@@ -8,6 +8,7 @@ import { money } from "@/lib/format";
 import {
   detectColumns,
   extractRows,
+  guessStatementMonth,
   readWorkbook,
   rowHash,
   type ColumnMap,
@@ -18,6 +19,7 @@ import {
 import type { Rule } from "@/lib/types";
 
 interface PreviewRow extends ParsedRow {
+  bookDate: string; // fecha con la que cuenta en el dashboard (cuotas viejas => mes del extracto)
   hash: string;
   category_id: string | null;
   include: boolean;
@@ -43,6 +45,7 @@ export default function ImportPage() {
   const [columns, setColumns] = useState<ColumnMap | null>(null);
   const [kind, setKind] = useState<StatementKind>("tarjeta");
   const [useInstallment, setUseInstallment] = useState(true);
+  const [statementMonth, setStatementMonth] = useState(""); // "" = detectar automáticamente
   const [person, setPerson] = useState(me?.display_name ?? "Familia");
   const [account, setAccount] = useState("");
   const [rows, setRows] = useState<PreviewRow[]>([]);
@@ -72,6 +75,7 @@ export default function ImportPage() {
       const parsed = readWorkbook(await file.arrayBuffer(), file.name);
       const firstOk = Math.max(0, parsed.findIndex((s) => s.columns));
       setFileName(file.name);
+      setStatementMonth("");
       setAccount(guessAccount(file.name));
       setSheets(parsed);
       selectSheet(parsed, firstOk);
@@ -93,8 +97,12 @@ export default function ImportPage() {
       return;
     }
     const parsed = extractRows(sheet, columns, { kind, useInstallmentValue: useInstallment });
+    const month = kind === "tarjeta" ? statementMonth || guessStatementMonth(parsed) : null;
+    if (month && !statementMonth) setStatementMonth(month);
     const preview: PreviewRow[] = parsed.map((r) => ({
       ...r,
+      // Cuotas de compras de meses anteriores cuentan en el mes de este extracto
+      bookDate: month && r.date < `${month}-01` ? `${month}-01` : r.date,
       hash: rowHash(account, r),
       category_id: categorize(r.description, r.type, kind),
       include: true,
@@ -104,7 +112,7 @@ export default function ImportPage() {
     setRows(preview);
     markDuplicates(preview);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [sheet, columns, kind, useInstallment, account, categorize]);
+  }, [sheet, columns, kind, useInstallment, account, categorize, statementMonth]);
 
   async function markDuplicates(preview: PreviewRow[]) {
     const existing = new Set<string>();
@@ -152,8 +160,9 @@ export default function ImportPage() {
     }
     const payload = selected.map((r) => ({
       household_id: household.id,
-      date: r.date,
+      date: r.bookDate,
       description: r.description,
+      notes: r.bookDate !== r.date ? `Compra original del ${r.date}` : null,
       amount: r.amount,
       original_amount: r.originalAmount,
       installments: r.installments,
@@ -201,7 +210,9 @@ export default function ImportPage() {
 
   const included = rows.filter((r) => r.include);
   const totalGastos = included.filter((r) => r.type === "gasto").reduce((a, r) => a + r.amount, 0);
-  const sinCategoria = included.filter((r) => !r.category_id).length;
+  const sinCategoria = included.filter(
+    (r) => !r.category_id || categoryById.get(r.category_id)?.name === "Por verificar",
+  ).length;
   const expenseCats = categories.filter((c) => c.kind !== "ingreso");
   const incomeCats = categories.filter((c) => c.kind !== "gasto");
   const headerCells = sheet && columns ? (sheet.rows[columns.headerRow] ?? []).map(String) : [];
@@ -263,6 +274,13 @@ export default function ImportPage() {
                     </option>
                   ))}
                 </select>
+              </div>
+            )}
+            {kind === "tarjeta" && (
+              <div>
+                <label className="label">Mes del extracto</label>
+                <input type="month" className="input" value={statementMonth} onChange={(e) => setStatementMonth(e.target.value)} />
+                <p className="muted mt-1">Las cuotas de compras viejas se cuentan en este mes.</p>
               </div>
             )}
             {kind === "tarjeta" && columns && columns.installmentAmount >= 0 && (
@@ -335,7 +353,7 @@ export default function ImportPage() {
           <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
             <div className="text-sm">
               <b>{included.length}</b> movimientos para importar · gastos {money(totalGastos)}
-              {sinCategoria > 0 && <span className="ml-2 text-amber-700">· {sinCategoria} sin categoría</span>}
+              {sinCategoria > 0 && <span className="ml-2 text-amber-700">· {sinCategoria} por verificar</span>}
               {rows.some((r) => r.duplicate) && (
                 <span className="ml-2 text-slate-500">· {rows.filter((r) => r.duplicate).length} ya estaban importados</span>
               )}
@@ -371,7 +389,10 @@ export default function ImportPage() {
                         onChange={(e) => setRows((rs) => rs.map((x, j) => (j === i ? { ...x, include: e.target.checked } : x)))}
                       />
                     </td>
-                    <td className="whitespace-nowrap">{r.date}</td>
+                    <td className="whitespace-nowrap">
+                      {r.bookDate}
+                      {r.bookDate !== r.date && <div className="text-xs text-slate-400">compra: {r.date}</div>}
+                    </td>
                     <td>
                       {r.description}
                       {r.installments && r.installments !== "1/1" && <span className="ml-2 text-xs text-slate-500">cuota {r.installments}</span>}
@@ -384,7 +405,7 @@ export default function ImportPage() {
                     </td>
                     <td>
                       <select
-                        className={`input py-1 ${!r.category_id ? "border-amber-400 bg-amber-50" : ""}`}
+                        className={`input py-1 ${!r.category_id || categoryById.get(r.category_id)?.name === "Por verificar" ? "border-amber-400 bg-amber-50" : ""}`}
                         value={r.category_id ?? ""}
                         onChange={(e) => setCategory(i, e.target.value)}
                       >
