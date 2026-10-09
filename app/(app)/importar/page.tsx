@@ -29,7 +29,7 @@ interface PreviewRow extends ParsedRow {
 
 const colLetter = (i: number) => (i < 0 ? "—" : String.fromCharCode(65 + (i % 26)).repeat(Math.floor(i / 26) + 1));
 
-/** "Extracto_202609_Visa_Detallado_4018.xlsx" -> "Visa 4018" */
+/** "Extracto_202609_Visa_Detallado_1234.xlsx" -> "Visa 1234" */
 function guessAccount(fileName: string) {
   const brand = /visa/i.test(fileName) ? "Visa" : /master/i.test(fileName) ? "Mastercard" : /nu/i.test(fileName) ? "Nu" : "";
   const last4 = fileName.match(/(\d{4})(?=\D*$)/)?.[1] ?? "";

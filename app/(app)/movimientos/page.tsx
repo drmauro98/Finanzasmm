@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useHousehold } from "@/components/HouseholdProvider";
 import MonthPicker from "@/components/MonthPicker";
+import RecurringLoader from "@/components/RecurringLoader";
 import { normalizeText, suggestPattern } from "@/lib/categorize";
 import { fetchTransactions } from "@/lib/data";
 import { monthRange, money } from "@/lib/format";
@@ -19,6 +20,7 @@ export default function MovimientosPage() {
   const [catFilter, setCatFilter] = useState<string>("");
   const [personFilter, setPersonFilter] = useState<string>("");
   const [showForm, setShowForm] = useState(false);
+  const [showFixed, setShowFixed] = useState(false);
   const [ruleFor, setRuleFor] = useState<{ tx: Transaction; categoryId: string; pattern: string } | null>(null);
 
   useEffect(() => {
@@ -104,6 +106,9 @@ export default function MovimientosPage() {
         </div>
         <div className="flex flex-wrap gap-2">
           <MonthPicker value={month} onChange={setMonth} />
+          <button className="btn-secondary" onClick={() => setShowFixed(!showFixed)}>
+            📌 Gastos fijos del mes
+          </button>
           <button className="btn" onClick={() => setShowForm(!showForm)}>
             ＋ Agregar manual
           </button>
@@ -115,6 +120,17 @@ export default function MovimientosPage() {
           defaultPerson={me?.display_name ?? "Familia"}
           onSaved={() => {
             setShowForm(false);
+            load();
+          }}
+        />
+      )}
+
+      {showFixed && txs && (
+        <RecurringLoader
+          month={month}
+          txs={txs}
+          onSaved={() => {
+            setShowFixed(false);
             load();
           }}
         />

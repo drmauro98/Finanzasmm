@@ -108,6 +108,33 @@ Aunque alguien se registrara, **no podría ver sus datos** (cada familia sólo v
 
 ---
 
+## 🔄 Actualizaciones de la base de datos
+
+Cuando la app reciba mejoras que necesitan cambios en la base de datos, aparecerá un archivo nuevo en
+[`supabase/migrations/`](supabase/migrations/). Ejecútalos **en orden** (002, 003, ...) en el SQL Editor de Supabase,
+igual que hiciste con `schema.sql`. Todos se pueden ejecutar más de una vez sin dañar nada.
+
+| Archivo | Qué hace |
+|---|---|
+| `002_agencia_deudas_por_verificar.sql` | Gastos de la agencia aparte, cuotas de deudas y categoría “Por verificar” |
+| `003_historial_deudas_y_fijos.sql` | Historial de cada deuda, gastos fijos del mes y reglas afinadas con extractos reales |
+
+### Gastos fijos del mes 📌
+En **⚙️ Configuración → Gastos fijos del mes** define arriendo, mamá, carro, mesada, seguridad social… y el diezmo
+como **10% de los ingresos**. Cada mes, en **🧾 Movimientos → 📌 Gastos fijos del mes**, revisas y guardas con un clic
+(registra primero los ingresos del mes para que el diezmo se calcule bien).
+
+### El diezmo
+El 10% de cada mes se registra como gasto (*Diezmo*). Cuando ese dinero se paga con la tarjeta
+(*IGLESIA EL LUGAR DE SU* / *DIEZMO*), la compra queda en **“Diezmo pagado (ya apartado)”**, que no suma: así no se
+cuenta dos veces.
+
+### Historial de deudas
+En **💳 Deudas** cada deuda tiene un botón **Historial**: todos los cargos y abonos con fecha, el saldo después de cada
+uno y una gráfica. Para deudas sin cuota fija (como la deuda con la agencia) registra cada abono ahí.
+
+---
+
 ## 🛠️ (Opcional) Correrla en tu computador
 
 Sólo si quieres hacer cambios al código:

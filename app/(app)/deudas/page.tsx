@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useHousehold } from "@/components/HouseholdProvider";
+import DebtHistory from "@/components/DebtHistory";
 import Stat from "@/components/Stat";
 import { monthsToPayoff } from "@/lib/debts";
 import { addMonths, currentMonth, monthLabel, money } from "@/lib/format";
@@ -28,6 +29,7 @@ export default function DeudasPage() {
   const [debts, setDebts] = useState<Debt[] | null>(null);
   const [form, setForm] = useState<Form | null>(null);
   const [editingId, setEditingId] = useState<string | null>(null);
+  const [historyOpen, setHistoryOpen] = useState<string | null>(null);
 
   async function load() {
     const { data } = await supabase.from("debts").select("*").eq("household_id", household.id).order("balance", { ascending: false });
@@ -96,6 +98,14 @@ export default function DeudasPage() {
       .from("debts")
       .update({ balance, installments_left, active: balance > 0 })
       .eq("id", d.id);
+    await supabase.from("debt_movements").insert({
+      household_id: household.id,
+      debt_id: d.id,
+      date: new Date().toISOString().slice(0, 10),
+      description: `Cuota pagada${d.installments_left ? ` (quedan ${installments_left})` : ""}`,
+      amount: balance - d.balance,
+      balance_after: balance,
+    });
     load();
   }
 
@@ -204,12 +214,17 @@ export default function DeudasPage() {
                   <span className="text-slate-600">
                     {d.balance <= 0
                       ? "🎉 ¡Pagada!"
-                      : months === null
-                        ? "La cuota no alcanza a cubrir los intereses"
+                      : !d.monthly_payment
+                        ? "Sin cuota fija: registra cada abono en el historial"
+                        : months === null
+                          ? "La cuota no alcanza a cubrir los intereses"
                         : `Termina en ${monthLabel(addMonths(currentMonth(), months - 1), true)} (${months} cuotas)`}
                   </span>
                   <span className="flex gap-1">
-                    {d.balance > 0 && (
+                    <button className="btn-secondary px-2 py-1" onClick={() => setHistoryOpen(historyOpen === d.id ? null : d.id)}>
+                      {historyOpen === d.id ? "Ocultar historial" : "Historial"}
+                    </button>
+                    {d.balance > 0 && d.monthly_payment > 0 && (
                       <button className="btn-secondary px-2 py-1" onClick={() => pay(d)}>
                         ✓ Pagué la cuota
                       </button>
@@ -223,6 +238,7 @@ export default function DeudasPage() {
                   </span>
                 </div>
                 {d.notes && <p className="muted mt-2">{d.notes}</p>}
+                {historyOpen === d.id && <DebtHistory debt={d} onChange={load} />}
               </div>
             );
           })}

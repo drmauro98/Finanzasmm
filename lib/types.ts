@@ -57,3 +57,22 @@ export interface Member {
   user_id: string;
   display_name: string;
 }
+
+export interface DebtMovement {
+  id: string;
+  debt_id: string;
+  date: string;
+  description: string;
+  amount: number; // positivo = la deuda sube, negativo = abono
+  balance_after: number;
+}
+
+export interface RecurringItem {
+  id: string;
+  name: string;
+  category_id: string | null;
+  amount: number;
+  percent_of_income: number | null;
+  person: string;
+  active: boolean;
+}

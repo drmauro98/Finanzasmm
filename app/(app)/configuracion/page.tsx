@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useHousehold } from "@/components/HouseholdProvider";
+import RecurringSettings from "@/components/RecurringSettings";
 import { normalizeText } from "@/lib/categorize";
 import { money } from "@/lib/format";
 import type { CategoryKind, Rule } from "@/lib/types";
@@ -142,6 +143,8 @@ export default function ConfiguracionPage() {
           <p className="muted">Así apareces en los movimientos y en “¿Quién gastó?”.</p>
         </div>
       </div>
+
+      <RecurringSettings />
 
       <div className="card">
         <h2 className="mb-1 font-semibold">Categorías</h2>
